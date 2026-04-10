@@ -1,0 +1,254 @@
+.intro {
+  margin-bottom: 1rem;
+}
+
+.intro p {
+  margin: 0;
+  color: var(--p-color-text-subdued, #6d7175);
+}
+
+.savedAt {
+  color: var(--p-color-text, #202223);
+}
+
+.table {
+  border: 1px solid var(--p-color-border-subdued, #e1e3e5);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--p-color-bg-surface, #fff);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+}
+
+.headerRow,
+.dataRow {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(120px, 1fr) minmax(180px, 1.2fr) minmax(110px, auto);
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  align-items: center;
+}
+
+.headerRow {
+  background: var(--p-color-bg-surface-secondary, #f6f6f7);
+  border-bottom: 1px solid var(--p-color-border-subdued, #e1e3e5);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--p-color-text-subdued, #6d7175);
+  font-weight: 600;
+}
+
+.dataRow {
+  border-bottom: 1px solid var(--p-color-border-subdued, #e1e3e5);
+  transition: background-color 0.15s ease;
+}
+
+.dataRow:hover {
+  background: #fbfbfc;
+}
+
+.dataRow:last-child {
+  border-bottom: none;
+}
+
+.typeCell {
+  font-size: 0.8125rem;
+  color: var(--p-color-text-subdued, #6d7175);
+}
+
+.savedCell {
+  font-size: 0.8125rem;
+  color: var(--p-color-text-subdued, #6d7175);
+  line-height: 1.45;
+}
+
+.savedCell div:last-child {
+  color: var(--p-color-text, #202223);
+  font-weight: 600;
+}
+
+.productCell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.productImage,
+.productImagePlaceholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  flex: 0 0 44px;
+}
+
+.productImage {
+  object-fit: cover;
+  border: 1px solid var(--p-color-border-subdued, #e1e3e5);
+}
+
+.productImagePlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--p-color-bg-surface-secondary, #f6f6f7);
+  color: var(--p-color-text-subdued, #6d7175);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+}
+
+.productTitle {
+  font-size: 0.875rem;
+  color: var(--p-color-text, #202223);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.productHandle {
+  font-size: 0.75rem;
+  color: var(--p-color-text-subdued, #6d7175);
+}
+
+.input {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.5rem 0.7rem;
+  box-sizing: border-box;
+  border: 1px solid var(--p-color-border, #c9cccf);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--p-color-text, #202223);
+  height: 38px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--p-color-border-info, #2c6ecb);
+  box-shadow: 0 0 0 1px var(--p-color-border-info, #2c6ecb);
+}
+
+.select {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.5rem 2rem 0.5rem 0.7rem;
+  box-sizing: border-box;
+  border: 1px solid var(--p-color-border, #c9cccf);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--p-color-text, #202223);
+  height: 38px;
+  line-height: 1.2;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background-image: linear-gradient(45deg, transparent 50%, #6d7175 50%),
+    linear-gradient(135deg, #6d7175 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.select:hover {
+  border-color: var(--p-color-border-hover, #8c9196);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--p-color-border-info, #2c6ecb);
+  box-shadow: 0 0 0 1px var(--p-color-border-info, #2c6ecb);
+}
+
+.select option {
+  color: var(--p-color-text, #202223);
+}
+
+.editorBox {
+  margin: 1rem 0.85rem;
+  border: 1px solid #d9dce0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f9fafb 0%, #f5f6f8 100%);
+  padding: 1rem;
+}
+
+.editorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.label {
+  font-size: 0.75rem;
+  color: var(--p-color-text-subdued, #6d7175);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.formulaBox {
+  margin-top: 0.9rem;
+  border: 1px dashed #c3c8ce;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.84rem;
+  color: var(--p-color-text, #202223);
+  line-height: 1.55;
+}
+
+.formulaTotal {
+  margin-top: 0.35rem;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.actionsSticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--p-color-border-subdued, #e1e3e5);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  backdrop-filter: saturate(140%) blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.actionsHint {
+  margin-right: auto;
+  font-size: 0.8125rem;
+  color: var(--p-color-text-subdued, #6d7175);
+}
+
+@media (max-width: 900px) {
+  .headerRow,
+  .dataRow {
+    grid-template-columns: minmax(220px, 2fr) minmax(90px, 1fr) minmax(140px, 1fr) auto;
+    gap: 0.6rem;
+    padding: 0.75rem;
+  }
+
+  .editorGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionsSticky {
+    padding: 0.65rem 0.7rem;
+  }
+}

@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+// Price distribution: metal (Gold/Silver/Platinum) and for Gold, karat (10/14/18/22)
+// price is stored as string to avoid float issues (e.g. "125.50")
+model PriceDistribution {
+  id     String   @id @default(cuid())
+  shop   String
+  metal  String   // "gold" | "silver" | "platinum"
+  karat  Int?     // only for gold: 10, 14, 18, 22; null for silver/platinum
+  price  String   // price per unit (e.g. per gram)
+  updatedAt DateTime @updatedAt
+
+  @@unique([shop, metal, karat])
+  @@index([shop])
+}
+
+// Diamond pricing by carat ranges (e.g. 1.0–2.0 carat => price)
+model DiamondPriceRange {
+  id       String   @id @default(cuid())
+  shop     String
+  diamondQuality String
+  diamondColor   String
+  minCarat Float
+  maxCarat Float
+  price    String
+  updatedAt DateTime @updatedAt
+
+  @@index([shop])
+  @@index([shop, minCarat, maxCarat])
+}
+
+// Product-level pricing inputs used for final price calculation
+model ProductPricingSetting {
+  id                 String   @id @default(cuid())
+  shop               String
+  productId          String
+  metalType          String   // "gold" | "silver" | "platinum"
+  goldKarat          String   // "10" | "14" | "18" | "22" (only for gold)
+  diamondQuality     String
+  diamondColor       String
+  metalWeight        String
+  diamondCaratWeight String
+  makingCharge       String
+  updatedAt          DateTime @updatedAt
+
+  @@unique([shop, productId])
+  @@index([shop])
+}
+
+// Global pricing settings for a shop
+model ShopPricingSetting {
+  id            String   @id @default(cuid())
+  shop          String   @unique
+  taxPercentage String
+  updatedAt     DateTime @updatedAt
+}
