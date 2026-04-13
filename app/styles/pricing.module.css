@@ -69,9 +69,14 @@
 
 /* Gold karat grid */
 .karatGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
+}
+
+.karatGrid > .field {
+  flex: 1 1 140px;
+  min-width: 140px;
 }
 
 .field {
@@ -125,8 +130,8 @@
 
 /* Diamond ranges */
 .rangeHeader {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr 0.9fr 0.9fr 1fr auto;
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   margin-bottom: 0.5rem;
   color: var(--p-color-text-subdued, #6d7175);
@@ -136,9 +141,39 @@
   text-transform: uppercase;
 }
 
+.rangeHeader > div:nth-child(1),
+.rangeRow > .field:nth-child(1) {
+  flex: 1.1 1 180px;
+}
+
+.rangeHeader > div:nth-child(2),
+.rangeRow > .field:nth-child(2) {
+  flex: 1 1 160px;
+}
+
+.rangeHeader > div:nth-child(3),
+.rangeRow > .field:nth-child(3) {
+  flex: 0.9 1 120px;
+}
+
+.rangeHeader > div:nth-child(4),
+.rangeRow > .field:nth-child(4) {
+  flex: 0.9 1 120px;
+}
+
+.rangeHeader > div:nth-child(5),
+.rangeRow > .field:nth-child(5) {
+  flex: 1 1 140px;
+}
+
+.rangeHeader > div:nth-child(6),
+.rangeRow > .rangeActions {
+  flex: 0 0 auto;
+}
+
 .rangeRow {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr 0.9fr 0.9fr 1fr auto;
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.75rem;
   align-items: end;
   margin-bottom: 0.75rem;
@@ -214,4 +249,76 @@
 .badgePlatinum {
   background: rgba(107, 123, 132, 0.2);
   color: #3d464d;
+}
+
+@media (max-width: 900px) {
+  .card {
+    padding: 1rem;
+  }
+
+  .rangeHeader,
+  .rangeRow {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .rangeHeader > div,
+  .rangeRow > .field {
+    flex: 1 1 calc(50% - 0.65rem);
+    min-width: 160px;
+  }
+
+  .rangeActions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .karatGrid {
+    gap: 0.75rem;
+  }
+
+  .karatGrid > .field {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
+  .singleField {
+    max-width: 100%;
+  }
+
+  .rangeHeader {
+    display: none;
+  }
+
+  .rangeRow {
+    display: block;
+    border: 1px solid var(--p-color-border-subdued, #e1e3e5);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.6rem;
+    background: #fff;
+  }
+
+  .rangeRow > .field,
+  .rangeRow > .rangeActions {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .rangeRow > .rangeActions {
+    margin-bottom: 0;
+  }
+
+  .actionsBar {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .actionsHint {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 0.25rem;
+  }
 }

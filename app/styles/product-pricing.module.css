@@ -21,11 +21,34 @@
 
 .headerRow,
 .dataRow {
-  display: grid;
-  grid-template-columns: minmax(260px, 2fr) minmax(120px, 1fr) minmax(180px, 1.2fr) minmax(110px, auto);
+  display: flex;
   gap: 0.75rem;
   padding: 0.85rem 1rem;
   align-items: center;
+}
+
+.headerRow > div:nth-child(1),
+.dataRow > div:nth-child(1) {
+  flex: 2 1 260px;
+  min-width: 220px;
+}
+
+.headerRow > div:nth-child(2),
+.dataRow > div:nth-child(2) {
+  flex: 1 1 120px;
+  min-width: 100px;
+}
+
+.headerRow > div:nth-child(3),
+.dataRow > div:nth-child(3) {
+  flex: 1.2 1 180px;
+  min-width: 140px;
+}
+
+.headerRow > div:nth-child(4),
+.dataRow > div:nth-child(4) {
+  flex: 0 0 110px;
+  min-width: 110px;
 }
 
 .headerRow {
@@ -177,9 +200,13 @@
 }
 
 .editorGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.editorGrid > .field {
+  flex: 1 1 180px;
 }
 
 .field {
@@ -239,16 +266,85 @@
 @media (max-width: 900px) {
   .headerRow,
   .dataRow {
-    grid-template-columns: minmax(220px, 2fr) minmax(90px, 1fr) minmax(140px, 1fr) auto;
     gap: 0.6rem;
     padding: 0.75rem;
   }
 
-  .editorGrid {
-    grid-template-columns: 1fr;
+  .headerRow > div:nth-child(1),
+  .dataRow > div:nth-child(1) {
+    flex-basis: 220px;
+  }
+
+  .headerRow > div:nth-child(2),
+  .dataRow > div:nth-child(2) {
+    flex-basis: 90px;
+  }
+
+  .headerRow > div:nth-child(3),
+  .dataRow > div:nth-child(3) {
+    flex-basis: 140px;
+  }
+
+  .editorGrid > .field {
+    flex-basis: 100%;
   }
 
   .actionsSticky {
     padding: 0.65rem 0.7rem;
+  }
+}
+
+@media (max-width: 700px) {
+  .table {
+    overflow: visible;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .headerRow {
+    display: none;
+  }
+
+  .dataRow {
+    display: block;
+    gap: 0.5rem;
+    border: 1px solid var(--p-color-border-subdued, #e1e3e5);
+    border-radius: 10px;
+    margin: 0 0 0.65rem;
+    background: #fff;
+  }
+
+  .dataRow > div {
+    margin-bottom: 0.5rem;
+  }
+
+  .dataRow > div:last-child {
+    margin-bottom: 0;
+  }
+
+  .productTitle {
+    white-space: normal;
+  }
+
+  .editorBox {
+    margin: 0.6rem 0;
+    padding: 0.8rem;
+  }
+
+  .formulaBox {
+    font-size: 0.8rem;
+  }
+
+  .actionsSticky {
+    position: static;
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .actionsHint {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 0.25rem;
   }
 }

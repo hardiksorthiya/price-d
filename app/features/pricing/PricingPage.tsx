@@ -35,43 +35,59 @@ export default function PricingPage() {
   }, [fetcher.data?.ok, shopify]);
 
   return (
-    <s-page heading="Price distribution">
-      <s-button
-        slot="primary-action"
-        disabled={!modelReady}
-        onClick={() =>
-          (
-            document.getElementById("pricing-form") as HTMLFormElement | null
-          )?.requestSubmit()
-        }
-      >
-        {isLoading ? "Saving…" : "Save prices"}
-      </s-button>
-
-      {!modelReady && (
-        <s-banner tone="critical">
-          Stop the dev server, run <code>npx prisma generate</code>, then start{" "}
-          <code>shopify app dev</code> again so prices can be saved.
-        </s-banner>
-      )}
-
-      <div className={styles.intro}>
-        <p>
-          Set your metal prices per unit (e.g. per gram). Gold uses karat tiers;
-          silver and platinum use a single rate.
-          {savedAt && (
-            <>
-              {" "}
-              <span style={{ color: "var(--p-color-text, #202223)" }}>
-                Saved {savedAt.toLocaleTimeString()}.
-              </span>
-            </>
-          )}
-        </p>
+    <div className="container-fluid app-page-container">
+      <div className="container-fluid">
+        <div className="row">
+          <div className="col-12">
+          <div className="app-page-header app-page-header-bar">
+        <h2 className="app-page-title">Price distribution</h2>
+        <button
+          className="btn btn-primary"
+          disabled={!modelReady}
+          onClick={() =>
+            (
+              document.getElementById("pricing-form") as HTMLFormElement | null
+            )?.requestSubmit()
+          }
+        >
+          {isLoading ? "Saving..." : "Save prices"}
+        </button>
       </div>
+          </div>
+        </div>
+      </div>
+      
 
-      <fetcher.Form id="pricing-form" method="post">
-        <s-section heading="Metals">
+      <div className="container-fluid">
+        <div className="row g-3">
+          <div className="col-12 col-xxl-9">
+            <div className="card shadow-sm app-main-card">
+              <div className="card-body">
+                {!modelReady && (
+                  <div className="alert alert-danger py-2" role="alert">
+                    Stop the dev server, run <code>npx prisma generate</code>, then
+                    start <code>shopify app dev</code> again so prices can be saved.
+                  </div>
+                )}
+
+                <div className={styles.intro}>
+                  <p>
+                    Set your metal prices per unit (e.g. per gram). Gold uses
+                    karat tiers; silver and platinum use a single rate.
+                    {savedAt && (
+                      <>
+                        {" "}
+                        <span style={{ color: "var(--p-color-text, #202223)" }}>
+                          Saved {savedAt.toLocaleTimeString()}.
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                <fetcher.Form id="pricing-form" method="post">
+                  <div>
+                    <h4 className="h6 mb-3">Metals</h4>
           <div className={`${styles.card} ${styles.cardGold}`}>
             <p className={styles.cardTitle}>
               <span className={styles.badgeGold}>Gold</span>
@@ -316,9 +332,9 @@ export default function PricingPage() {
                 </div>
 
                 <div className={styles.rangeActions}>
-                  <s-button
+                  <button
                     type="button"
-                    variant="tertiary"
+                    className="btn btn-outline-secondary btn-sm"
                     disabled={formState.diamond.length <= 1}
                     onClick={() =>
                       setFormState((s) => ({
@@ -328,14 +344,14 @@ export default function PricingPage() {
                     }
                   >
                     Remove
-                  </s-button>
+                  </button>
                 </div>
               </div>
             ))}
 
-            <s-button
+            <button
               type="button"
-              variant="secondary"
+              className="btn btn-outline-primary btn-sm"
               onClick={() =>
                 setFormState((s) => ({
                   ...s,
@@ -344,7 +360,7 @@ export default function PricingPage() {
               }
             >
               Add range
-            </s-button>
+            </button>
           </div>
 
           <div className={`${styles.card} ${styles.cardTax}`}>
@@ -374,35 +390,50 @@ export default function PricingPage() {
               />
             </div>
           </div>
-        </s-section>
+                  </div>
 
-        <div className={styles.actionsBar}>
-          <span className={styles.actionsHint}>
-            Tip: You can leave fields blank to clear them.
-          </span>
-          <s-button
-            type="button"
-            variant="tertiary"
-            onClick={() => setFormState(initialState)}
-            disabled={isLoading}
-          >
-            Reset
-          </s-button>
-          <s-button type="submit" disabled={!modelReady}>
-            {isLoading ? "Saving…" : "Save prices"}
-          </s-button>
-        </div>
-      </fetcher.Form>
+                  <div className={styles.actionsBar}>
+                    <span className={styles.actionsHint}>
+                      Tip: You can leave fields blank to clear them.
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => setFormState(initialState)}
+                      disabled={isLoading}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-sm"
+                      disabled={!modelReady}
+                    >
+                      {isLoading ? "Saving..." : "Save prices"}
+                    </button>
+                  </div>
+                </fetcher.Form>
+              </div>
+            </div>
+          </div>
 
-      <s-section slot="aside" heading="How it works">
-        <div className={styles.howItWorks}>
-          <p>
-            Configure base prices for <strong>Gold</strong> (10kt, 14kt, 18kt,
-            22kt), <strong>Silver</strong>, and <strong>Platinum</strong>. Use
-            these later to calculate product or variant prices (e.g. by weight).
-          </p>
+          <div className="col-12 col-xxl-3">
+            <div className="card shadow-sm app-side-card">
+              <div className="card-body">
+                <h5 className="card-title app-section-title">How it works</h5>
+                <div className={styles.howItWorks}>
+                  <p>
+                    Configure base prices for <strong>Gold</strong> (10kt, 14kt,
+                    18kt, 22kt), <strong>Silver</strong>, and{" "}
+                    <strong>Platinum</strong>. Use these later to calculate
+                    product or variant prices (e.g. by weight).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </s-section>
-    </s-page>
+      </div>
+    </div>
   );
 }

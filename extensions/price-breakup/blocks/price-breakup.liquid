@@ -1,0 +1,344 @@
+{% assign show_section = block.settings.show_section %}
+{% assign note_1 = block.settings.note_1 %}
+{% assign note_2 = block.settings.note_2 %}
+{% assign selected_variant = product.selected_or_first_available_variant %}
+{% assign breakup = selected_variant.metafields.app.price_breakup.value %}
+
+{% if show_section %}
+  <section class="appd-price-breakup" {{ block.shopify_attributes }}>
+    <div class="appd-price-breakup__header-row">
+      <h3 class="appd-price-breakup__heading">{{ block.settings.heading }}</h3>
+    </div>
+
+    <div class="appd-price-breakup__card">
+      {% if note_1 != blank or note_2 != blank %}
+        <ul class="appd-price-breakup__notes">
+          {% if note_1 != blank %}
+            <li>{{ note_1 }}</li>
+          {% endif %}
+          {% if note_2 != blank %}
+            <li>{{ note_2 }}</li>
+          {% endif %}
+        </ul>
+      {% endif %}
+
+      <div class="appd-price-breakup__table-wrap"{% if breakup == blank %} style="display:none;"{% endif %} data-appd-breakup-table>
+        <table class="appd-price-breakup__table">
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Rate</th>
+              <th>Weight</th>
+              <th>Final value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-appd-metal-component>{% if breakup != blank %}{{ breakup.rows.metal.component }}{% endif %}</td>
+              <td data-appd-metal-rate>{% if breakup != blank %}{{ breakup.rows.metal.rate | times: 100 | round | money }}{% endif %}</td>
+              <td data-appd-metal-weight>{% if breakup != blank %}{{ breakup.rows.metal.weight }} g{% endif %}</td>
+              <td data-appd-metal-final>{% if breakup != blank %}{{ breakup.rows.metal.finalValue | times: 100 | round | money }}{% endif %}</td>
+            </tr>
+            <tr>
+              <td data-appd-diamond-component>{% if breakup != blank %}{{ breakup.rows.diamond.component }}{% endif %}</td>
+              <td data-appd-diamond-rate>{% if breakup != blank %}{{ breakup.rows.diamond.rate | times: 100 | round | money }}{% endif %}</td>
+              <td data-appd-diamond-weight>{% if breakup != blank %}{{ breakup.rows.diamond.weight }} ct{% endif %}</td>
+              <td data-appd-diamond-final>{% if breakup != blank %}{{ breakup.rows.diamond.finalValue | times: 100 | round | money }}{% endif %}</td>
+            </tr>
+            <tr>
+              <td>Making Charges</td>
+              <td>-</td>
+              <td>-</td>
+              <td data-appd-making-final>{% if breakup != blank %}{{ breakup.rows.making.finalValue | times: 100 | round | money }}{% endif %}</td>
+            </tr>
+            <tr class="appd-price-breakup__total-row">
+              <td>Sub Total</td>
+              <td>-</td>
+              <td>-</td>
+              <td data-appd-subtotal>{% if breakup != blank %}{{ breakup.totals.subTotal | times: 100 | round | money }}{% endif %}</td>
+            </tr>
+            <tr class="appd-price-breakup__total-row">
+              <td data-appd-tax-label>{% if breakup != blank %}Tax ({{ breakup.taxPercentage }}%){% else %}Tax{% endif %}</td>
+              <td>-</td>
+              <td>-</td>
+              <td data-appd-tax-value>{% if breakup != blank %}{{ breakup.totals.tax | times: 100 | round | money }}{% endif %}</td>
+            </tr>
+            <tr class="appd-price-breakup__total-row">
+              <td>Grand Total</td>
+              <td>-</td>
+              <td>-</td>
+              <td data-appd-grand-total>{% if breakup != blank %}{{ breakup.totals.grandTotal | times: 100 | round | money }}{% endif %}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="appd-price-breakup__empty"{% if breakup != blank %} style="display:none;"{% endif %} data-appd-breakup-empty>
+        Price breakup is not available for this variant yet. Save this product in your app Product Price page first.
+      </p>
+    </div>
+  </section>
+{% endif %}
+
+<script>
+  (() => {
+    const container = document.currentScript?.previousElementSibling;
+    if (!container || !container.classList.contains('appd-price-breakup')) return;
+
+    const dataByVariant = {
+      {% for variant in product.variants %}
+        "{{ variant.id }}": {{ variant.metafields.app.price_breakup.value | json }}{% unless forloop.last %},{% endunless %}
+      {% endfor %}
+    };
+
+    const money = (amount) => {
+      const value = Number(amount || 0);
+      return new Intl.NumberFormat('{{ request.locale.iso_code | default: "en-IN" }}', {
+        style: 'currency',
+        currency: '{{ cart.currency.iso_code | default: shop.currency }}',
+        maximumFractionDigits: 2,
+      }).format(value);
+    };
+
+    const tableWrap = container.querySelector('[data-appd-breakup-table]');
+    const emptyWrap = container.querySelector('[data-appd-breakup-empty]');
+    const fields = {
+      metalComponent: container.querySelector('[data-appd-metal-component]'),
+      metalRate: container.querySelector('[data-appd-metal-rate]'),
+      metalWeight: container.querySelector('[data-appd-metal-weight]'),
+      metalFinal: container.querySelector('[data-appd-metal-final]'),
+      diamondComponent: container.querySelector('[data-appd-diamond-component]'),
+      diamondRate: container.querySelector('[data-appd-diamond-rate]'),
+      diamondWeight: container.querySelector('[data-appd-diamond-weight]'),
+      diamondFinal: container.querySelector('[data-appd-diamond-final]'),
+      makingFinal: container.querySelector('[data-appd-making-final]'),
+      subTotal: container.querySelector('[data-appd-subtotal]'),
+      taxLabel: container.querySelector('[data-appd-tax-label]'),
+      taxValue: container.querySelector('[data-appd-tax-value]'),
+      grandTotal: container.querySelector('[data-appd-grand-total]'),
+    };
+
+    const normalizeVariantId = (variantId) => {
+      if (variantId == null) return '';
+      return String(variantId).split('/').pop();
+    };
+
+    const getBreakupForVariant = (variantId) => {
+      const key = normalizeVariantId(variantId);
+      const raw = dataByVariant[key];
+      if (!raw) return null;
+      if (typeof raw === 'string') {
+        try {
+          return JSON.parse(raw);
+        } catch (_error) {
+          return null;
+        }
+      }
+      return raw;
+    };
+
+    const render = (variantId) => {
+      const breakup = getBreakupForVariant(variantId);
+      if (!breakup) {
+        if (tableWrap) tableWrap.style.display = 'none';
+        if (emptyWrap) emptyWrap.style.display = '';
+        return;
+      }
+
+      if (tableWrap) tableWrap.style.display = '';
+      if (emptyWrap) emptyWrap.style.display = 'none';
+
+      fields.metalComponent.textContent = breakup.rows?.metal?.component || '';
+      fields.metalRate.textContent = money(breakup.rows?.metal?.rate);
+      fields.metalWeight.textContent = `${breakup.rows?.metal?.weight ?? 0} g`;
+      fields.metalFinal.textContent = money(breakup.rows?.metal?.finalValue);
+
+      fields.diamondComponent.textContent = breakup.rows?.diamond?.component || 'Diamond';
+      fields.diamondRate.textContent = money(breakup.rows?.diamond?.rate);
+      fields.diamondWeight.textContent = `${breakup.rows?.diamond?.weight ?? 0} ct`;
+      fields.diamondFinal.textContent = money(breakup.rows?.diamond?.finalValue);
+
+      fields.makingFinal.textContent = money(breakup.rows?.making?.finalValue);
+      fields.subTotal.textContent = money(breakup.totals?.subTotal);
+      fields.taxLabel.textContent = `Tax (${breakup.taxPercentage ?? 0}%)`;
+      fields.taxValue.textContent = money(breakup.totals?.tax);
+      fields.grandTotal.textContent = money(breakup.totals?.grandTotal);
+    };
+
+    const getCurrentVariantId = () => {
+      const productForm = container.closest('.shopify-section')?.querySelector('form[action*="/cart/add"]')
+        || document.querySelector('form[action*="/cart/add"]');
+      if (!productForm) return '{{ selected_variant.id }}';
+      const idInput = productForm.querySelector('input[name="id"], select[name="id"]');
+      return idInput ? idInput.value : '{{ selected_variant.id }}';
+    };
+
+    render(getCurrentVariantId());
+
+    document.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.matches('input[name="id"], select[name="id"], input[type="radio"], select') || target.closest('form[action*="/cart/add"]')) {
+        window.setTimeout(() => render(getCurrentVariantId()), 50);
+      }
+    });
+
+    document.addEventListener('variant:change', (event) => {
+      const variantId = event?.detail?.variant?.id;
+      if (variantId) render(variantId);
+    });
+
+    const productForm = container.closest('.shopify-section')?.querySelector('form[action*="/cart/add"]')
+      || document.querySelector('form[action*="/cart/add"]');
+    const idInput = productForm?.querySelector('input[name="id"], select[name="id"]');
+    if (idInput) {
+      const watch = () => render(idInput.value);
+      idInput.addEventListener('change', watch);
+      idInput.addEventListener('input', watch);
+      const observer = new MutationObserver(watch);
+      observer.observe(idInput, { attributes: true, attributeFilter: ['value'] });
+    }
+  })();
+</script>
+
+<style>
+  .appd-price-breakup {
+    margin: 16px 0;
+  }
+
+  .appd-price-breakup__heading {
+    margin: 0 0 10px;
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .appd-price-breakup__card {
+    padding: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 12px;
+    background: #f7f8fb;
+  }
+
+  .appd-price-breakup__notes {
+    margin: 0 0 14px;
+    padding-left: 18px;
+    color: #4f4f57;
+    font-size: 14px;
+  }
+
+  .appd-price-breakup__notes li + li {
+    margin-top: 8px;
+  }
+
+  .appd-price-breakup__table-wrap {
+    overflow-x: auto;
+  }
+
+  .appd-price-breakup__table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 16px;
+    background: #fff;
+  }
+
+  .appd-price-breakup__table th,
+  .appd-price-breakup__table td {
+    border-right: 1px solid rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .appd-price-breakup__table th:last-child,
+  .appd-price-breakup__table td:last-child {
+    border-right: 0;
+  }
+
+  .appd-price-breakup__table tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .appd-price-breakup__table th {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 14px;
+    font-weight: 700;
+    background: #f0f1f5;
+  }
+
+  .appd-price-breakup__total-row td {
+    font-weight: 700;
+  }
+
+  .appd-price-breakup__empty {
+    margin: 0;
+    color: #444;
+    font-size: 14px;
+  }
+
+  @media (max-width: 749px) {
+    .appd-price-breakup__heading {
+      font-size: 20px;
+    }
+
+    .appd-price-breakup__card {
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .appd-price-breakup__table {
+      font-size: 14px;
+      border-radius: 8px;
+    }
+
+    .appd-price-breakup__table th,
+    .appd-price-breakup__table td {
+      padding: 8px 9px;
+      white-space: nowrap;
+    }
+
+    .appd-price-breakup__notes {
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Price Breakup",
+  "target": "section",
+  "templates": ["product"],
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "show_section",
+      "label": "Show price breakup",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Price Breakup"
+    },
+    {
+      "type": "textarea",
+      "id": "note_1",
+      "label": "Note 1",
+      "default": "The final product weight may vary slightly. Price is adjusted based on actual weight."
+    },
+    {
+      "type": "textarea",
+      "id": "note_2",
+      "label": "Note 2",
+      "default": "Neck chain price may depend on gold grams and diamond weight."
+    }
+  ]
+}
+{% endschema %}

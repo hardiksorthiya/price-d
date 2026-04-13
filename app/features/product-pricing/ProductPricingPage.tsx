@@ -59,6 +59,177 @@ export default function ProductPricingPage() {
   );
 
   const [rows, setRows] = useState<ProductFormRow[]>(initialRows);
+
+  const csvHeaders = [
+    "productId",
+    "sku",
+    "productName",
+    "attribute",
+    "metalType",
+    "goldKarat",
+    "diamondQuality",
+    "diamondColor",
+    "metalWeight",
+    "diamondCaratWeight",
+    "makingCharge",
+  ] as const;
+
+  const escapeCsvValue = (value: string) => {
+    const normalized = value.replace(/"/g, '""');
+    return `"${normalized}"`;
+  };
+
+  const buildCsv = (data: ProductFormRow[]) => {
+    const headerRow = csvHeaders.join(",");
+    const lines = data.map((row) =>
+      {
+        const product = products.find((p) => p.id === row.productId);
+        const fullTitle = product?.title ?? "";
+        const titleMatch = fullTitle.match(/^(.*?)\s*\((.*?)\)\s*$/);
+        const productName = titleMatch?.[1]?.trim() ?? fullTitle;
+        const attribute = titleMatch?.[2]?.trim() ?? "";
+        return [
+          row.productId,
+          product?.sku ?? "",
+          productName,
+          attribute,
+          row.metalType,
+          row.goldKarat,
+          row.diamondQuality,
+          row.diamondColor,
+          row.metalWeight,
+          row.diamondCaratWeight,
+          row.makingCharge,
+        ]
+          .map((value) => escapeCsvValue(String(value ?? "")))
+          .join(",");
+      },
+    );
+    return [headerRow, ...lines].join("\n");
+  };
+
+  const downloadCsv = (filename: string, data: ProductFormRow[]) => {
+    const csv = buildCsv(data);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  };
+
+  const parseCsvLine = (line: string) => {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === "," && !inQuotes) {
+        result.push(current);
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    result.push(current);
+    return result.map((cell) => cell.trim());
+  };
+
+  const handleExportTemplate = () => {
+    const templateRows = products.map((product) => ({
+      productId: product.id,
+      metalType: "gold" as const,
+      goldKarat: "22" as const,
+      diamondQuality: "",
+      diamondColor: "",
+      metalWeight: "",
+      diamondCaratWeight: "",
+      makingCharge: "",
+    }));
+    downloadCsv("product-pricing-template.csv", templateRows);
+  };
+
+  const handleExportCurrent = () => {
+    downloadCsv("product-pricing-current.csv", rows);
+  };
+
+  const handleImportCsv = async (file: File) => {
+    const text = await file.text();
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length < 2) {
+      shopify.toast.show("CSV is empty or missing data rows.", { isError: true });
+      return;
+    }
+
+    const header = parseCsvLine(lines[0]);
+    const requiredHeaders = Array.from(csvHeaders);
+    const hasAllHeaders = requiredHeaders
+      .filter((h) => !["sku", "productName", "attribute"].includes(h))
+      .every((h) => header.includes(h));
+    if (!hasAllHeaders) {
+      shopify.toast.show("Invalid CSV format. Please use exported template.", {
+        isError: true,
+      });
+      return;
+    }
+
+    const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+    const importedByProductId = new Map<string, ProductFormRow>();
+    for (let i = 1; i < lines.length; i++) {
+      const cells = parseCsvLine(lines[i]);
+      const productId = cells[idx.productId] ?? "";
+      if (!productId) continue;
+
+      const metalRaw = (cells[idx.metalType] ?? "").toLowerCase();
+      const metalType: ProductFormRow["metalType"] =
+        metalRaw === "silver" || metalRaw === "platinum" ? metalRaw : "gold";
+      const karatRaw = cells[idx.goldKarat] ?? "";
+      const goldKarat: ProductFormRow["goldKarat"] =
+        karatRaw === "10" ||
+        karatRaw === "14" ||
+        karatRaw === "18" ||
+        karatRaw === "22"
+          ? karatRaw
+          : metalType === "gold"
+            ? "22"
+            : "";
+
+      importedByProductId.set(productId, {
+        productId,
+        metalType,
+        goldKarat,
+        diamondQuality: cells[idx.diamondQuality] ?? "",
+        diamondColor: cells[idx.diamondColor] ?? "",
+        metalWeight: cells[idx.metalWeight] ?? "",
+        diamondCaratWeight: cells[idx.diamondCaratWeight] ?? "",
+        makingCharge: cells[idx.makingCharge] ?? "",
+      });
+    }
+
+    let appliedCount = 0;
+    setRows((prev) =>
+      prev.map((row) => {
+        const imported = importedByProductId.get(row.productId);
+        if (!imported) return row;
+        appliedCount += 1;
+        return imported;
+      }),
+    );
+    shopify.toast.show(`Imported pricing for ${appliedCount} product(s).`);
+  };
   useEffect(() => {
     if (!isLoading) setRows(initialRows);
   }, [initialRows, isLoading]);
@@ -152,47 +323,94 @@ export default function ProductPricingPage() {
   };
 
   return (
-    <s-page heading="Product price">
-      <s-button
-        slot="primary-action"
-        disabled={!modelReady}
-        onClick={() =>
-          (
-            document.getElementById(
-              "product-pricing-form",
-            ) as HTMLFormElement | null
-          )?.requestSubmit()
-        }
-      >
-        {isLoading ? "Saving…" : "Save product prices"}
-      </s-button>
-
-      <div className={styles.intro}>
-        <p>
-          First list shows your inventory items. Click <strong>Edit</strong> on an
-          item to set metal weight, diamond weight, and making charge with formula.
-          {savedAt && (
-            <>
-              {" "}
-              <span className={styles.savedAt}>
-                Saved {savedAt.toLocaleTimeString()}.
-              </span>
-            </>
-          )}
-        </p>
+    <div className="container-fluid app-page-container">
+      <div className="container-fluid">
+        <div className="row">
+          <div className="col-12">
+          <div className="app-page-header app-page-header-bar">
+        <h2 className="app-page-title">Product price</h2>
+        <div className="d-flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={handleExportTemplate}
+          >
+            Export template
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={handleExportCurrent}
+          >
+            Export current
+          </button>
+          <label className="btn btn-outline-secondary mb-0">
+            Import CSV
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              style={{ display: "none" }}
+              onChange={async (e) => {
+                const file = e.currentTarget.files?.[0];
+                if (!file) return;
+                await handleImportCsv(file);
+                e.currentTarget.value = "";
+              }}
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            disabled={!modelReady}
+            onClick={() =>
+              (
+                document.getElementById(
+                  "product-pricing-form",
+                ) as HTMLFormElement | null
+              )?.requestSubmit()
+            }
+          >
+            {isLoading ? "Saving..." : "Save product prices"}
+          </button>
+        </div>
       </div>
+          </div>
+        </div>
+      </div>
+      
 
-      {!modelReady && (
-        <s-banner tone="critical">
-          Product pricing model is not ready. Run <code>npm run setup</code>, then
-          restart <code>shopify app dev</code>.
-        </s-banner>
-      )}
+      <div className="container-fluid">
+        <div className="row g-3">
+          <div className="col-12">
+            <div className="card shadow-sm app-main-card">
+              <div className="card-body">
+                <div className={styles.intro}>
+                  <p>
+                    First list shows your inventory items. Click <strong>Edit</strong>{" "}
+                    on an item to set metal weight, diamond weight, and making
+                    charge with formula.
+                    {savedAt && (
+                      <>
+                        {" "}
+                        <span className={styles.savedAt}>
+                          Saved {savedAt.toLocaleTimeString()}.
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
 
-      <fetcher.Form id="product-pricing-form" method="post">
-        <input type="hidden" name="product_count" value={rows.length} />
+                {!modelReady && (
+                  <div className="alert alert-danger py-2" role="alert">
+                    Product pricing model is not ready. Run{" "}
+                    <code>npm run setup</code>, then restart{" "}
+                    <code>shopify app dev</code>.
+                  </div>
+                )}
 
-        <div className={styles.table}>
+                <fetcher.Form id="product-pricing-form" method="post">
+                  <input type="hidden" name="product_count" value={rows.length} />
+
+                  <div className={styles.table}>
           <div className={styles.headerRow}>
             <div>Inventory item</div>
             <div>SKU / Track</div>
@@ -264,9 +482,9 @@ export default function ProductPricingPage() {
                   </div>
 
                   <div>
-                    <s-button
+                    <button
                       type="button"
-                      variant={isEditing ? "secondary" : "primary"}
+                      className={`btn btn-sm ${isEditing ? "btn-outline-secondary" : "btn-primary"}`}
                       onClick={() =>
                         setEditingProductId((curr) =>
                           curr === product.id ? null : product.id,
@@ -274,7 +492,7 @@ export default function ProductPricingPage() {
                       }
                     >
                       {isEditing ? "Close" : "Edit"}
-                    </s-button>
+                    </button>
                   </div>
                 </div>
 
@@ -461,25 +679,34 @@ export default function ProductPricingPage() {
               </div>
             );
           })}
-        </div>
+                  </div>
 
-        <div className={styles.actionsSticky}>
-          <span className={styles.actionsHint}>
-            Save updates your pricing data and Shopify storefront prices.
-          </span>
-          <s-button
-            type="button"
-            variant="tertiary"
-            onClick={() => setRows(initialRows)}
-            disabled={isLoading}
-          >
-            Reset
-          </s-button>
-          <s-button type="submit" disabled={!modelReady}>
-            {isLoading ? "Saving…" : "Save product prices"}
-          </s-button>
+                  <div className={styles.actionsSticky}>
+                    <span className={styles.actionsHint}>
+                      Save updates your pricing data and Shopify storefront prices.
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => setRows(initialRows)}
+                      disabled={isLoading}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-sm"
+                      disabled={!modelReady}
+                    >
+                      {isLoading ? "Saving..." : "Save product prices"}
+                    </button>
+                  </div>
+                </fetcher.Form>
+              </div>
+            </div>
+          </div>
         </div>
-      </fetcher.Form>
-    </s-page>
+      </div>
+    </div>
   );
 }

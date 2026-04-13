@@ -1,6 +1,12 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import prisma from "../../db.server";
 import { authenticate } from "../../shopify.server";
+import {
+  getActiveSubscription,
+  getPlanBySubscriptionName,
+  getShopPlanInfo,
+  getVariantLimitByPlan,
+} from "../../lib/billing.server";
 import type {
   ProductPricingLoaderData,
   ProductRow,
@@ -69,6 +75,15 @@ const toNumber = (value: string) => {
 };
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
+const toMoney = (value: number) => Number(value.toFixed(2));
+
+const chunkArray = <T>(items: T[], size: number) => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+};
 
 export const loader = async ({
   request,
@@ -411,6 +426,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     variantLinks.push({ productId, variantId, parentProductId });
   }
 
+  // Enforce plan-based configured variant limits.
+  const activeSubscription = await getActiveSubscription(admin);
+  const shopPlanInfo = await getShopPlanInfo(admin);
+  const activePlan = activeSubscription
+    ? getPlanBySubscriptionName(activeSubscription.name)
+    : "free";
+  if (activePlan === "free" && !shopPlanInfo.partnerDevelopment) {
+    return {
+      ok: false,
+      errors: [
+        "Free plan is available only for development stores. Please choose a paid plan from the Plans page to continue.",
+      ],
+    };
+  }
+  const variantLimit = getVariantLimitByPlan(activePlan);
+  if (variantLimit !== null && toSave.length > variantLimit) {
+    return {
+      ok: false,
+      errors: [
+        `Your ${activePlan} plan supports up to ${variantLimit} variants. You are trying to save ${toSave.length}. Upgrade plan from the Plans page.`,
+      ],
+    };
+  }
+
   try {
     await model.deleteMany({ where: { shop } });
     for (const row of toSave) {
@@ -435,6 +474,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   // Push calculated prices to Shopify variants so storefront reflects custom pricing.
   const updatesByProductId = new Map<string, { id: string; price: string }[]>();
+  const metafieldsToSet: { ownerId: string; namespace: string; key: string; type: string; value: string }[] = [];
   let skippedVariantCount = 0;
   for (const row of toSave) {
     const variantLink = variantLinks.find((v) => v.productId === row.productId);
@@ -473,10 +513,61 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const baseTotal = metalTotal + diamondTotal + toNumber(row.makingCharge);
     const taxAmount = (baseTotal * toNumber(taxPercentage)) / 100;
     const finalTotal = baseTotal + taxAmount;
+    const roundedBaseTotal = toMoney(baseTotal);
+    const roundedTaxAmount = toMoney(taxAmount);
+    const roundedFinalTotal = toMoney(finalTotal);
+    const roundedMetalTotal = toMoney(metalTotal);
+    const roundedDiamondTotal = toMoney(diamondTotal);
+
+    const breakupPayload = {
+      metalType: row.metalType,
+      goldKarat: row.goldKarat,
+      diamondQuality: row.diamondQuality,
+      diamondColor: row.diamondColor,
+      taxPercentage: toMoney(toNumber(taxPercentage)),
+      rows: {
+        metal: {
+          component:
+            row.metalType === "gold"
+              ? `Gold ${row.goldKarat ? `${row.goldKarat}KT` : ""}`.trim()
+              : row.metalType === "silver"
+                ? "Silver"
+                : "Platinum",
+          rate: toMoney(metalRate),
+          weight: toMoney(toNumber(row.metalWeight)),
+          finalValue: roundedMetalTotal,
+        },
+        diamond: {
+          component:
+            row.diamondQuality && row.diamondColor
+              ? `${row.diamondQuality} / ${row.diamondColor}`
+              : "Diamond",
+          rate: toMoney(diamondRate),
+          weight: toMoney(diamondWeight),
+          finalValue: roundedDiamondTotal,
+        },
+        making: {
+          component: "Making Charges",
+          finalValue: toMoney(toNumber(row.makingCharge)),
+        },
+      },
+      totals: {
+        subTotal: roundedBaseTotal,
+        tax: roundedTaxAmount,
+        grandTotal: roundedFinalTotal,
+      },
+    };
 
     const existing = updatesByProductId.get(variantLink.parentProductId) ?? [];
     existing.push({ id: variantLink.variantId, price: finalTotal.toFixed(2) });
     updatesByProductId.set(variantLink.parentProductId, existing);
+    metafieldsToSet.push({
+      ownerId: variantLink.variantId,
+      namespace: "app",
+      key: "price_breakup",
+      type: "json",
+      value: JSON.stringify(breakupPayload),
+    });
   }
 
   let updatedVariantCount = 0;
@@ -512,6 +603,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     for (const err of result?.userErrors ?? []) {
       syncErrors.push(err.message);
+    }
+  }
+
+  if (metafieldsToSet.length > 0) {
+    const chunks = chunkArray(metafieldsToSet, 25);
+    for (const metafields of chunks) {
+      const response = await admin.graphql(
+        `#graphql
+          mutation SetPriceBreakupMetafields($metafields: [MetafieldsSetInput!]!) {
+            metafieldsSet(metafields: $metafields) {
+              metafields {
+                id
+                key
+              }
+              userErrors {
+                field
+                message
+              }
+            }
+          }`,
+        { variables: { metafields } },
+      );
+      const json = (await response.json()) as {
+        data?: {
+          metafieldsSet?: {
+            userErrors?: { field?: string[]; message: string }[];
+          };
+        };
+      };
+      for (const err of json.data?.metafieldsSet?.userErrors ?? []) {
+        syncErrors.push(err.message);
+      }
     }
   }
 
