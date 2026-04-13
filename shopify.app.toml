@@ -1,8 +1,8 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+# Shopify App Configuration
 
 client_id = "814851efaf52e772eabf1d5d5d7583a1"
 name = "Price Breakup"
-application_url = "https://example.com"
+application_url = "https://price-d.onrender.com"
 embedded = true
 
 [build]
@@ -13,20 +13,20 @@ include_config_on_deploy = true
 api_version = "2026-04"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
+  topics = ["app/uninstalled"]
   uri = "/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
+  topics = ["app/scopes_update"]
   uri = "/webhooks/app/scopes_update"
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_metaobject_definitions,write_metaobjects,write_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = ["https://price-d.onrender.com/auth/callback"]
 
+# Product metafield
 [product.metafields.app.demo_info]
 type = "single_line_text_field"
 name = "Demo Source Info"
@@ -35,6 +35,7 @@ description = "Tracks products created by the Shopify app template for developme
   [product.metafields.app.demo_info.access]
   admin = "merchant_read_write"
 
+# Variant metafield (your main feature 🔥)
 [variant.metafields.app.price_breakup]
 type = "json"
 name = "Price breakup"
@@ -43,6 +44,7 @@ description = "Stores calculated product price breakup for storefront rendering"
   [variant.metafields.app.price_breakup.access]
   admin = "merchant_read_write"
 
+# Example metaobject (optional)
 [metaobjects.app.example]
 name = "Example"
 description = "An example metaobject definition created by this template"
