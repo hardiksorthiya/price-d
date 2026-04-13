@@ -7,6 +7,19 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 
+const requiredEnv = ["SHOPIFY_API_KEY", "SHOPIFY_API_SECRET", "SCOPES"] as const;
+for (const key of requiredEnv) {
+  if (!process.env[key]) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+}
+
+if (!process.env.SHOPIFY_APP_URL) {
+  throw new Error(
+    "Missing required environment variable: SHOPIFY_APP_URL. Set it to your live app URL (e.g. https://price-d.onrender.com).",
+  );
+}
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
