@@ -14,5 +14,5 @@ scopes = ""
 optional_scopes = [ ]
 use_legacy_install_flow = false
 
-[auth]
+[auth] 
 redirect_urls = ["https://price-d.onrender.com/auth/callback"]
