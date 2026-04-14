@@ -8,17 +8,18 @@ api_version = "2026-04"
 
 [access_scopes]
 scopes = "write_products,read_inventory,write_inventory,write_metaobjects,write_metaobject_definitions"
-optional_scopes = [ ]
+optional_scopes = []
 use_legacy_install_flow = false
 
 [auth]
 redirect_urls = ["https://price-d.onrender.com/auth/callback"]
 
-# ✅ ADD THIS BLOCK
-[variant.metafields.app.price_breakup]
+# ✅ VERY IMPORTANT (METAFIELD FIX)
+[product.metafields.price_breakup.data]
 type = "json"
 name = "Price breakup"
-description = "Stores product price breakup"
+description = "Stores calculated product price breakup"
 
-  [variant.metafields.app.price_breakup.access]
-  admin = "merchant_read_write"
+[product.metafields.price_breakup.data.access]
+admin = "merchant_read_write"
+storefront = "public_read"

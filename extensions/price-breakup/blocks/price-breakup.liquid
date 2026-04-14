@@ -2,7 +2,11 @@
 {% assign note_1 = block.settings.note_1 %}
 {% assign note_2 = block.settings.note_2 %}
 {% assign selected_variant = product.selected_or_first_available_variant %}
-{% assign breakup = selected_variant.metafields.app.price_breakup.value %}
+{% assign breakup_data = product.metafields.price_breakup.data.value %}
+{% assign breakup = blank %}
+{% if breakup_data and breakup_data.variants %}
+  {% assign breakup = breakup_data.variants[selected_variant.id] %}
+{% endif %}
 
 {% if show_section %}
   <section class="appd-price-breakup" {{ block.shopify_attributes }}>
@@ -87,7 +91,13 @@
 
     const dataByVariant = {
       {% for variant in product.variants %}
-        "{{ variant.id }}": {{ variant.metafields.app.price_breakup.value | json }}{% unless forloop.last %},{% endunless %}
+        "{{ variant.id }}":
+          {% if breakup_data and breakup_data.variants and breakup_data.variants[variant.id] %}
+            {{ breakup_data.variants[variant.id] | json }}
+          {% else %}
+            null
+          {% endif %}
+        {% unless forloop.last %},{% endunless %}
       {% endfor %}
     };
 

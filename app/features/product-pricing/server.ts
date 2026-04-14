@@ -85,6 +85,59 @@ const chunkArray = <T>(items: T[], size: number) => {
   return chunks;
 };
 
+const ensureProductPriceBreakupDefinition = async (admin: {
+  graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response>;
+}) => {
+  const response = await admin.graphql(
+    `#graphql
+      mutation EnsurePriceBreakupDefinition($definition: MetafieldDefinitionInput!) {
+        metafieldDefinitionCreate(definition: $definition) {
+          createdDefinition {
+            id
+          }
+          userErrors {
+            field
+            message
+            code
+          }
+        }
+      }`,
+    {
+      variables: {
+        definition: {
+          name: "Price breakup data",
+          namespace: "price_breakup",
+          key: "data",
+          description: "Stores calculated product price breakup for storefront rendering",
+          type: "json",
+          ownerType: "PRODUCT",
+          access: {
+            admin: "MERCHANT_READ_WRITE",
+            storefront: "PUBLIC_READ",
+          },
+        },
+      },
+    },
+  );
+  const json = (await response.json()) as {
+    data?: {
+      metafieldDefinitionCreate?: {
+        userErrors?: { message: string; code?: string }[];
+      };
+    };
+  };
+  const errors = json.data?.metafieldDefinitionCreate?.userErrors ?? [];
+  const blockingErrors = errors.filter(
+    (err) =>
+      !err.message.toLowerCase().includes("already exists") &&
+      err.code !== "TAKEN",
+  );
+  return {
+    ok: blockingErrors.length === 0,
+    errors: blockingErrors.map((err) => err.message),
+  };
+};
+
 export const loader = async ({
   request,
 }: LoaderFunctionArgs): Promise<ProductPricingLoaderData> => {
@@ -93,23 +146,23 @@ export const loader = async ({
 
   const response = await admin.graphql(
     `#graphql
-      query ProductPricingInventoryList {
-        inventoryItems(first: 100) {
+      query ProductPricingList {
+        products(first: 50) {
           edges {
             node {
               id
-              sku
-              tracked
-              variant {
-                id
-                title
-                product {
-                  id
-                  title
-                  handle
-                  productType
-                  featuredImage {
-                    url
+              title
+              handle
+              productType
+              featuredImage {
+                url
+              }
+              variants(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    sku
                   }
                 }
               }
@@ -119,41 +172,29 @@ export const loader = async ({
       }`,
   );
   const responseJson = await response.json();
-  const nodes = responseJson?.data?.inventoryItems?.edges ?? [];
+  const nodes = responseJson?.data?.products?.edges ?? [];
 
-  const products: ProductRow[] = nodes.map(
-    (edge: {
-      node: {
-        id: string;
-        sku?: string | null;
-        tracked?: boolean | null;
-        variant?: {
-          id?: string | null;
-          title?: string | null;
-          product?: {
-            id?: string | null;
-            title?: string | null;
-            handle?: string | null;
-            productType?: string | null;
-            featuredImage?: { url?: string | null } | null;
-          } | null;
-        } | null;
-      };
-    }) => ({
-      id: edge.node.id,
-      variantId: edge.node.variant?.id ?? "",
-      parentProductId: edge.node.variant?.product?.id ?? "",
-      title:
-        edge.node.variant?.product?.title && edge.node.variant?.title
-          ? `${edge.node.variant.product.title} (${edge.node.variant.title})`
-          : edge.node.variant?.product?.title ?? "Untitled inventory item",
-      handle: edge.node.variant?.product?.handle ?? "",
-      productType: edge.node.variant?.product?.productType ?? "Uncategorized",
-      sku: edge.node.sku ?? "",
-      tracked: Boolean(edge.node.tracked),
-      imageUrl: edge.node.variant?.product?.featuredImage?.url ?? null,
-    }),
-  );
+  const products: ProductRow[] = [];
+
+  nodes.forEach((edge: any) => {
+    const product = edge.node;
+  
+    product.variants.edges.forEach((variantEdge: any) => {
+      const variant = variantEdge.node;
+  
+      products.push({
+        id: variant.id,
+        variantId: variant.id,
+        parentProductId: product.id,
+        title: `${product.title} (${variant.title})`,
+        handle: product.handle,
+        productType: product.productType ?? "Uncategorized",
+        sku: variant.sku ?? "",
+        tracked: true,
+        imageUrl: product.featuredImage?.url ?? null,
+      });
+    });
+  });
 
   const priceDistributionModel = getPriceDistributionModel();
   const diamondPriceRangeModel = getDiamondPriceRangeModel();
@@ -289,6 +330,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const priceDistributionModel = getPriceDistributionModel();
   const diamondPriceRangeModel = getDiamondPriceRangeModel();
   const shopPricingSettingModel = getShopPricingSettingModel();
+  const definitionCheck = await ensureProductPriceBreakupDefinition(admin);
 
   const pricesByMetal: ProductPricingLoaderData["pricesByMetal"] = {
     gold: { "10": "", "14": "", "18": "", "22": "" },
@@ -474,7 +516,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   // Push calculated prices to Shopify variants so storefront reflects custom pricing.
   const updatesByProductId = new Map<string, { id: string; price: string }[]>();
-  const metafieldsToSet: { ownerId: string; namespace: string; key: string; type: string; value: string }[] = [];
+  const breakupByProductId = new Map<string, Record<string, unknown>>();
   let skippedVariantCount = 0;
   for (const row of toSave) {
     const variantLink = variantLinks.find((v) => v.productId === row.productId);
@@ -561,17 +603,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const existing = updatesByProductId.get(variantLink.parentProductId) ?? [];
     existing.push({ id: variantLink.variantId, price: finalTotal.toFixed(2) });
     updatesByProductId.set(variantLink.parentProductId, existing);
-    metafieldsToSet.push({
-      ownerId: variantLink.variantId,
-      namespace: "app",
-      key: "price_breakup",
-      type: "json",
-      value: JSON.stringify(breakupPayload),
-    });
+    const existingBreakupMap = breakupByProductId.get(variantLink.parentProductId) ?? {};
+    existingBreakupMap[variantLink.variantId] = breakupPayload;
+    breakupByProductId.set(variantLink.parentProductId, existingBreakupMap);
   }
 
   let updatedVariantCount = 0;
-  const syncErrors: string[] = [];
+  const syncErrors: string[] = [...definitionCheck.errors];
   for (const [productId, variants] of updatesByProductId) {
     const response = await admin.graphql(
       `#graphql
@@ -605,6 +643,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       syncErrors.push(err.message);
     }
   }
+
+  const metafieldsToSet: { ownerId: string; namespace: string; key: string; type: string; value: string }[] =
+    Array.from(breakupByProductId.entries()).map(([ownerId, variants]) => ({
+      ownerId,
+      namespace: "price_breakup",
+      key: "data",
+      type: "json",
+      value: JSON.stringify({ variants }),
+    }));
 
   if (metafieldsToSet.length > 0) {
     const chunks = chunkArray(metafieldsToSet, 25);
