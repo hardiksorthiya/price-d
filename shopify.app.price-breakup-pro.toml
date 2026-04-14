@@ -1,5 +1,3 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
-
 client_id = "b3e8371c1204a33df310ceb4f1d96cb6"
 name = "MetalBreak Pro"
 application_url = "https://price-d.onrender.com"
@@ -9,11 +7,18 @@ embedded = true
 api_version = "2026-04"
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products,read_inventory,write_inventory,write_metaobjects,write_metaobject_definitions"
 optional_scopes = [ ]
 use_legacy_install_flow = false
 
-[auth] 
+[auth]
 redirect_urls = ["https://price-d.onrender.com/auth/callback"]
 
+# ✅ ADD THIS BLOCK
+[variant.metafields.app.price_breakup]
+type = "json"
+name = "Price breakup"
+description = "Stores product price breakup"
+
+  [variant.metafields.app.price_breakup.access]
+  admin = "merchant_read_write"
