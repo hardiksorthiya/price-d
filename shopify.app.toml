@@ -20,7 +20,7 @@ api_version = "2026-04"
   uri = "/webhooks/app/scopes_update"
 
 [access_scopes]
-scopes = "write_metaobject_definitions,write_metaobjects,write_products"
+scopes = "write_products,read_inventory,write_inventory,write_metaobjects,write_metaobject_definitions"
 
 [auth]
 redirect_urls = ["https://price-d.onrender.com/auth/callback"]
