@@ -85,58 +85,6 @@ const chunkArray = <T>(items: T[], size: number) => {
   return chunks;
 };
 
-const ensureProductPriceBreakupDefinition = async (admin: {
-  graphql: (query: string, options?: { variables?: Record<string, unknown> }) => Promise<Response>;
-}) => {
-  const response = await admin.graphql(
-    `#graphql
-      mutation EnsurePriceBreakupDefinition($definition: MetafieldDefinitionInput!) {
-        metafieldDefinitionCreate(definition: $definition) {
-          createdDefinition {
-            id
-          }
-          userErrors {
-            field
-            message
-            code
-          }
-        }
-      }`,
-    {
-      variables: {
-        definition: {
-          name: "Price breakup data",
-          namespace: "price_breakup",
-          key: "data",
-          description: "Stores calculated product price breakup for storefront rendering",
-          type: "json",
-          ownerType: "PRODUCT",
-          access: {
-            admin: "MERCHANT_READ_WRITE",
-            storefront: "PUBLIC_READ",
-          },
-        },
-      },
-    },
-  );
-  const json = (await response.json()) as {
-    data?: {
-      metafieldDefinitionCreate?: {
-        userErrors?: { message: string; code?: string }[];
-      };
-    };
-  };
-  const errors = json.data?.metafieldDefinitionCreate?.userErrors ?? [];
-  const blockingErrors = errors.filter(
-    (err) =>
-      !err.message.toLowerCase().includes("already exists") &&
-      err.code !== "TAKEN",
-  );
-  return {
-    ok: blockingErrors.length === 0,
-    errors: blockingErrors.map((err) => err.message),
-  };
-};
 
 export const loader = async ({
   request,
@@ -330,7 +278,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const priceDistributionModel = getPriceDistributionModel();
   const diamondPriceRangeModel = getDiamondPriceRangeModel();
   const shopPricingSettingModel = getShopPricingSettingModel();
-  const definitionCheck = await ensureProductPriceBreakupDefinition(admin);
 
   const pricesByMetal: ProductPricingLoaderData["pricesByMetal"] = {
     gold: { "10": "", "14": "", "18": "", "22": "" },
@@ -609,7 +556,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   let updatedVariantCount = 0;
-  const syncErrors: string[] = [...definitionCheck.errors];
+  const syncErrors: string[] = [];
   for (const [productId, variants] of updatesByProductId) {
     const response = await admin.graphql(
       `#graphql
