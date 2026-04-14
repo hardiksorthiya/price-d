@@ -42,6 +42,7 @@ description = "Stores calculated product price breakup for storefront rendering"
 
   [product.metafields.price_breakup.data.access]
   admin = "merchant_read_write"
+  storefront = "public_read"
 
 # Example metaobject (optional)
 [metaobjects.app.example]
